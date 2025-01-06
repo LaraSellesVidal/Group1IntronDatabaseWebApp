@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+  <style>
+    .container {
+        display: flex;
+        height: 100vh;
+        width: 100%;
+        max-width: none;
+    }
+    .split {
+        overflow: auto;
+    }
+    .left {
+        min-width: max-content;
+        border-right: 1px solid #000; /* Add a border to the right side of the left split */
+        padding-right: 10px;
+    }
+    .right {
+        flex-grow: 1; /* This will make the right split take up the remaining space */
+        overflow: auto;
+    }
+    td {
+        max-width: 200px; /* Adjust as needed */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="split left">
+      <div style="height: 100vh; overflow: auto;">
+        <p style="font-size: 14pt; font-weight: bold;">Select conditions to filter <br />displayed introns:</p>
+        <form method="GET">
+          <label for="subtype">Subtype:</label><br>
+          {% for subtype in intron_subtypes %}
+              <input type="checkbox" id="subtype" name="subtype" value="{{ subtype }}"
+              {% if subtype in request.args.getlist('subtype') %} checked {% endif %}>
+              <label for="{{ subtype }}">{{ subtype }}</label><br>
+          {% endfor %}
+
+          <label for="organism">Organism name:</label><br>
+          <input type="text" id="organism" name="organism" value="{{ request.args.get('organism', '') }}"><br>
+
+          <label for="organism_type">Organism type:</label><br>
+          {% for organismType in intron_organismTypes %}
+              <input type="checkbox" id="organismType" name="organismType" value="{{ organismType }}"
+              {% if organismType in request.args.getlist('organismType') %} checked {% endif %}>
+              <label for="{{ organismType }}">{{ organismType }}</label><br>
+          {% endfor %}
+
+<!--           <label for="sort_by">Sort by:</label><br>
+          <input type="text" id="sort_by" name="sort_by" value="{{ request.args.get('sort_by', '') }}"><br> -->
+          <!-- <input type="submit" value="Apply filters"> -->
+          <button type="submit" class="btn btn-primary mb-3">Apply filters</button>
+      </form>
+      <form method="POST">
+        <button type="submit" name="download" class="btn btn-primary mb-3">Download results</button>
+    </form>
+      </div>
+    </div>
+    <div class="split right">
+      <div style="width:100%; height:100vh; overflow:auto;">
+          <table class="table table-striped table-bordered"
+                 data-detail-view-by-click="true">
+              <thead>
+                  <tr>
+                  {% for column in df.columns %}
+                      <th scope="col">{{ column }}</th>
+                  {% endfor %}
+                  </tr>
+              </thead>
+              <tbody>
+                  {% for result in results %}
+                      <tr>
+                      {% for column in df.columns %}
+                          <td data-bs-toggle="popover" data-bs-content="{{ result[column] }}">{{ result[column] }}</td>
+                      {% endfor %}
+                      </tr>
+                  {% endfor %}
+              </tbody>
+          </table>
+          <div class="d-flex justify-content-center">
+            {% set num_pages_before = 2 %}
+            {% set num_pages_after = 2 %}
+            {% set range_start = (current_page - num_pages_before)|max(1) %}
+            {% set range_end = (current_page + num_pages_after)|min(total_pages) %}
+        
+            <!-- first page button (conditional) -->
+            {% if range_start > 1 %}
+                <a href="{{ url_for('search', page=1) }}&{{ request.query_string.decode() }}" class="btn btn-primary {{ 'active' if current_page == 1 else '' }}">1</a>
+            {% endif %}
+            
+            <!-- ellipsis1 -->
+            {% if range_start > 2 %}
+                <span class="btn disabled">...</span>
+            {% endif %}
+        
+            <!-- pages around current page -->
+            {% for i in range(range_start, range_end + 1) %}
+                <a href="{{ url_for('search', page=i) }}&{{ request.query_string.decode() }}" class="btn btn-primary {{ 'active' if current_page == i else '' }}">{{ i }}</a>
+            {% endfor %}
+
+            <!-- ellipsis2 -->
+            {% if range_end < total_pages - 1 %}
+                <span class="btn disabled">...</span>
+            {% endif %}
+        
+            <!-- final page button (also conditional) -->
+            {% if range_end < total_pages %}
+            <a href="{{ url_for('search', page=total_pages) }}&{{ request.query_string.decode() }}" class="btn btn-primary {{ 'active' if current_page == total_pages else '' }}">{{ total_pages }}</a>
+            {% endif %}
+        </div>
+          <div class="d-flex justify-content-center">
+            <form method="GET" action="{{ url_for('search') }}">
+                <div class="input-group">
+                    <input type="number" class="form-control" name="page" min="1" max="{{ total_pages }}" placeholder="Go to page..." style="width: 15ch;">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit">Go</button>
+                    </div>
+                </div>
+                <input type="hidden" name="organism" value="{{ request.args.get('organism') }}">
+                {% for subtype in request.args.getlist('subtype') %}
+                    <input type="hidden" name="subtype" value="{{ subtype }}">
+                {% endfor %}
+            </form>
+        </div>
+      </div>
+  </div>
+</div>
+</body>
+<footer>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+  <script>
+    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+    var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl)
+    })
+  </script>
+</footer>
+</html>
